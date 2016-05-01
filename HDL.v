@@ -8,33 +8,39 @@ Import ListNotations.
 Definition chip_name : Set := string.
 Definition pin_name : Set := string.
 
-Inductive chip : Set :=
-| BuiltIn : chip_interface -> chip
-| Composite : chip_interface -> parts -> chip
-
-with chip_interface : Set :=
-| ChipInterface : chip_name -> inputs -> outputs -> chip_interface
-
-with inputs : Set :=
-| Inputs : list pin -> inputs
-
-with outputs : Set :=
-| Outputs : list pin -> outputs
-
-with pin : Set :=
-| Pin : pin_name -> pin
-
-with parts : Set :=
-| Parts : list part -> parts
-
-with part : Set :=
-| InternalChip : chip_name -> connections -> part
-
-with connections : Set :=
-| Connections : list connection -> connections
-
-with connection : Set :=
+Inductive connection : Set :=
 | Connection : pin_name -> pin_name -> connection.
+
+Inductive connections : Set :=
+| Connections : list connection -> connections.
+
+Inductive part : Set :=
+| InternalChip : chip_name -> connections -> part.
+
+Inductive parts : Set :=
+| Parts : list part -> parts.
+
+Inductive pin : Set :=
+| Pin : pin_name -> pin.
+
+Inductive inputs : Set :=
+| Inputs : list pin -> inputs.
+
+Inductive outputs : Set :=
+| Outputs : list pin -> outputs.
+
+Inductive chip_interface : Set :=
+| ChipInterface : chip_name -> inputs -> outputs -> chip_interface.
+
+Definition interface_name (i : chip_interface) : chip_name :=
+  match i with
+    | ChipInterface n _ _ => n
+  end.
+
+Inductive chip : chip_name -> Set :=
+| BuiltIn : forall (i : chip_interface), chip (interface_name i)
+| Composite : forall (i : chip_interface), parts -> chip (interface_name i).
+
 
 Module HDLNotations.
   (* TODO: verify levels are reasonable *)
@@ -113,6 +119,7 @@ Check CHIP "XYZ" {{
 (* TODO:
 
    - [ ] model an environment of chips, each identified by name
+     - see Registry.v for humble beginnings of unique-key enforced association lists
    - [ ] make chips correct by construction
      - [ ] a part must be a chip recognized in the environment.
      - [ ] a chip introduced to the environment must have a unique name.
