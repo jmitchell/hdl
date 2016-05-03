@@ -1,9 +1,10 @@
 Require Import String.
+Require Import Nat.
 Require Import List.
-
+Require Vector.
+Require Vectors.VectorDef.
+Import VectorDef.VectorNotations.
 Open Scope string_scope.
-Import ListNotations.
-
 
 Definition chip_name : Set := string.
 Definition pin_name : Set := string.
@@ -210,16 +211,62 @@ Definition xor_gate : chip :=
                }}.
 
 Definition provisional_registry : chip_registry :=
-  [ nand_gate;
-    not_gate;
-    and_gate;
-    or_gate;
-    nor_gate;
-    xor_gate ].
+  VectorDef.to_list
+    [ nand_gate;
+      not_gate;
+      and_gate;
+      or_gate;
+      nor_gate;
+      xor_gate ].
 
-(* TODO: make a truth table type with [n] bool inputs with [m] outputs *)
-(* TODO: define the truth table for the builtin NAND chip *)
-(* TODO: derive truth tables for the other chips and prove they are as expected *)
+Eval compute in (get_chip "AND" provisional_registry).
+
+Definition input_pins : chip -> list pin :=
+  fun c =>
+    match c with
+      | BUILTIN _ {{ Inputs i ; _ ; }} => i
+      | CHIP _ {{ Inputs i ; _ ; _ }} => i
+    end.
+
+Definition output_pins : chip -> list pin :=
+  fun c =>
+    match c with
+      | BUILTIN _ {{ _ ; Outputs o ; }} => o
+      | CHIP _ {{ _ ; Outputs o ; _ }} => o
+    end.
+
+(* TODO: Have [truth_table] confirm all possible inputs are defined. Then [tt_eval] won't have to return an [option] type. Perhaps BinNats can help with an alternative encoding for inputs. *)
+Definition truth_table (i o : nat) : Set :=
+  Vector.t (Vector.t bool i * Vector.t bool o) (pow 2 i).
+
+Definition chip_truth_table (c : chip) : Set :=
+  truth_table (length (input_pins c))
+              (length (output_pins c)).
+
+Notation "$+" := true.
+Notation "$-" := false.
+
+Definition nand_truth_table : chip_truth_table nand_gate :=
+  [ ([ $- ; $- ], [ $+ ]) ;
+    ([ $- ; $+ ], [ $+ ]) ;
+    ([ $+ ; $- ], [ $+ ]) ;
+    ([ $+ ; $+ ], [ $- ])
+  ].
+
+Fixpoint vfind {T : Type} {n : nat} (pred : T -> bool) (vs : Vector.t T n) : option T :=
+  match vs with
+    | [] => None
+    | (v::vs') => if pred v then Some v else vfind pred vs'
+  end.
+Import VectorDef.
+
+(* TODO: Find an entry in [nand_truth_table] for a given input vector. *)
+
+Definition tt_eval : forall {i o : nat}, truth_table i o -> Vector.t bool i -> option (Vector.t bool o) :=
+  fun _ _ table inputs => None. (* TODO: fix this *)
+
+(* TODO: derive truth tables for composite chips and prove they are as expected *)
+
 
 
 (* TODO:
