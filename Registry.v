@@ -43,3 +43,35 @@ Inductive registry K V (eq_dec : eq_for K): Type :=
 | Registry : forall (al : assoc_list K V) {p : assoc_uniq eq_dec al}, registry K V eq_dec.
 
 (* TODO: examples of using [registry]. refactor as needed to simplify *)
+
+
+
+
+(* Experiments with Coq built-in map interfaces *)
+
+
+(* http://stackoverflow.com/questions/14489232/finite-map-example *)
+Require Import FMapAVL.
+Require Import OrderedTypeEx.
+
+Module M := FMapAVL.Make(Nat_as_OT).
+
+Definition map_nat_nat : Type := M.t nat.
+
+Definition find k (m : map_nat_nat) := M.find k m.
+
+Definition update (p : nat * nat) (m : map_nat_nat) :=
+  M.add (fst p) (snd p) m.
+
+Notation "k |-> v" := (pair k v) (at level 60, no associativity).
+Notation "[ ]" := nil.
+Notation "[ p1 , .. , pn ]" := (update p1 .. (update pn (M.empty nat))..).
+
+Example ex1 : find 3 [1 |-> 2, 3 |-> 4] = Some 4.
+Proof. reflexivity. Qed.
+
+Example ex2 : find 5 [1 |-> 2, 3 |-> 4] = None.
+Proof. reflexivity. Qed.
+
+Example ex3 : find 0 [0 |-> 1, 0 |-> 2] = Some 1.
+Proof. reflexivity. Qed.

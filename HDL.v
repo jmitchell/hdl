@@ -9,7 +9,8 @@ Definition chip_name : Set := string.
 Definition pin_name : Set := string.
 
 Inductive connection : Set :=
-| Connection : pin_name -> pin_name -> connection.
+| Connection : pin_name -> pin_name -> connection
+| ConstSignal : pin_name -> bool -> connection.
 
 Inductive connections : Set :=
 | Connections : list connection -> connections.
@@ -32,14 +33,9 @@ Inductive outputs : Set :=
 Inductive chip_interface : Set :=
 | ChipInterface : chip_name -> inputs -> outputs -> chip_interface.
 
-Definition interface_name (i : chip_interface) : chip_name :=
-  match i with
-    | ChipInterface n _ _ => n
-  end.
-
-Inductive chip : chip_name -> Set :=
-| BuiltIn : forall (i : chip_interface), chip (interface_name i)
-| Composite : forall (i : chip_interface), parts -> chip (interface_name i).
+Inductive chip : Set :=
+| BuiltIn : forall (i : chip_interface), chip
+| Composite : forall (i : chip_interface), parts -> chip.
 
 
 Module HDLNotations.
@@ -59,6 +55,14 @@ Module HDLNotations.
 
   Notation "x -- y" :=
     (Connection x y)
+      (at level 0, no associativity) : HDL_scope.
+
+  Notation "x -- -" :=
+    (ConstSignal x false)
+      (at level 0, no associativity) : HDL_scope.
+
+  Notation "x -- +" :=
+    (ConstSignal x true)
       (at level 0, no associativity) : HDL_scope.
 
   Notation "'_' name {{ conn1 , .. , connn }}" :=
@@ -116,10 +120,113 @@ Check CHIP "XYZ" {{
                                   }}
                    }}.
 
+Definition chip_registry : Type := list chip.
+
+Definition name_of (chip : chip) : chip_name :=
+  match chip with
+    | BUILTIN n {{ _ ; _  ; }} => n
+    | CHIP n {{ _ ; _ ; _ }} => n
+  end.
+
+Fixpoint get_chip (name : chip_name) (chips : list chip) : option chip :=
+  find (fun c => if string_dec (name_of c) name then true else false) chips.
+
+
+
+Definition nand_gate : chip :=
+  BUILTIN "NAND" {{
+                     IN "a", "b";
+                     OUT "out";
+                   }}.
+
+Definition not_gate : chip :=
+  CHIP "NOT" {{
+                 IN "in";
+                 OUT "out";
+                 PARTS:
+                   _"NAND" {{ "a" -- "in",
+                              "b" -- "in",
+                              "out" -- "out" }}
+                    }}.
+
+Definition and_gate : chip :=
+  CHIP "AND" {{
+                 IN "a", "b";
+                 OUT "out";
+                 PARTS:
+                   _"NAND" {{ "a" -- "a",
+                              "b" -- "b",
+                              "out" -- "c0" }};
+                   _"NOT" {{ "in" -- "c0",
+                             "out" -- "out" }}
+               }}.
+
+Definition or_gate : chip :=
+  CHIP "OR" {{
+                IN "a", "b";
+                OUT "out";
+                PARTS:
+                  _"NAND" {{ "a" -- +,
+                             "b" -- "a",
+                             "out" -- "c0" }};
+                  _"NAND" {{ "a" -- +,
+                             "b" -- "b",
+                             "out" -- "c1" }};
+                  _"NAND" {{ "a" -- "c0",
+                             "b" -- "c1",
+                             "out" -- "out" }}
+                   }}.
+
+Definition nor_gate : chip :=
+  CHIP "NOR" {{
+                 IN "a", "b";
+                 OUT "out";
+                 PARTS:
+                   _"OR" {{ "a" -- "a",
+                            "b" -- "b",
+                            "out" -- "c0" }};
+                   _"NOT" {{ "in" -- "c0",
+                             "out" -- "out" }}
+               }}.
+
+Definition xor_gate : chip :=
+  CHIP "XOR" {{
+                 IN "a", "b";
+                 OUT "out";
+                 PARTS:
+                   _"NAND" {{ "a" -- "a",
+                              "b" -- "b",
+                              "out" -- "c0" }};
+                   _"NOT" {{ "in" -- "a",
+                             "out" -- "a0" }};
+                   _"NOT" {{ "in" -- "b",
+                             "out" -- "b0" }};
+                   _"NAND" {{ "a" -- "a0",
+                              "b" -- "b0",
+                              "out" -- "c1" }};
+                   _"AND" {{ "a" -- "c0",
+                             "b" -- "c1",
+                             "out" -- "out" }}
+               }}.
+
+Definition provisional_registry : chip_registry :=
+  [ nand_gate;
+    not_gate;
+    and_gate;
+    or_gate;
+    nor_gate;
+    xor_gate ].
+
+(* TODO: make a truth table type with [n] bool inputs with [m] outputs *)
+(* TODO: define the truth table for the builtin NAND chip *)
+(* TODO: derive truth tables for the other chips and prove they are as expected *)
+
+
 (* TODO:
 
    - [ ] model an environment of chips, each identified by name
      - see Registry.v for humble beginnings of unique-key enforced association lists
+     - NB: while important, focusing too much on correctness by construction in the first iteration won't get me anywhere
    - [ ] make chips correct by construction
      - [ ] a part must be a chip recognized in the environment.
      - [ ] a chip introduced to the environment must have a unique name.
