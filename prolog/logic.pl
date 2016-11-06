@@ -34,7 +34,7 @@ chip(mux, _, B, true, B).
 chip(mux2, A, B, C, D, S1, S0, O) :-
     chip(mux, A, B, S1, AB),
     chip(mux, C, D, S1, CD),
-    cihp(mux, AB, CD, S0, O).
+    chip(mux, AB, CD, S0, O).
 
 chip(mux4,
      A1, A2, A3, A4,
